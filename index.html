@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Catálogo de Lentes Intraoculares ACS</title>
+    <title>Catálogo de Lentes Intraoculares (IOL)</title>
     <style>
         body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 20px; background-color: #f0f2f5; color: #333; }
         .container { max-width: 1200px; margin: 0 auto; background: white; padding: 25px; border-radius: 10px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
@@ -19,13 +19,26 @@
         .filtro-group label { display: block; font-weight: 600; margin-bottom: 8px; font-size: 0.9em; color: #555; }
         .filtro-group select, .filtro-group input { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 5px; box-sizing: border-box; font-size: 14px; }
         
+        /* Estilo del Contador */
+        .contador-container { text-align: center; margin-bottom: 20px; }
+        .contador-badge { 
+            display: inline-block; 
+            background-color: #007bff; 
+            color: white; 
+            padding: 8px 20px; 
+            border-radius: 50px; 
+            font-weight: bold; 
+            font-size: 1.1em;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+        }
+        
         /* Tabla de Resultados */
         .table-responsive { overflow-x: auto; }
         table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 0.95em; }
         th, td { padding: 15px; text-align: left; border-bottom: 1px solid #ddd; }
         th { background-color: #007bff; color: white; white-space: nowrap; }
         tr:nth-child(even) { background-color: #f9f9f9; }
-        tr:hover { background-color: #e3f2fd; cursor: pointer; } /* Cursor manita para indicar click */
+        tr:hover { background-color: #e3f2fd; cursor: pointer; } 
         
         /* Etiquetas dentro de la tabla */
         .badge { padding: 4px 8px; border-radius: 4px; font-size: 0.8em; font-weight: bold; }
@@ -86,10 +99,10 @@
         
         <!-- HEADER CON LOGO -->
         <div class="header">
-            <img src="logo.png" alt="Logo Institucional" class="logo-img" onerror="this.style.display='none'">
+            <img src="logo.png" alt="Logo Institucional" class="logo-img">
             <div>
-                <h1>Listado de Lentes ACS</h1>
-                <p>Advance Clinical Service</p>
+                <h1>Catálogo de Lentes</h1>
+                <p>Haz clic en una lente para ver detalles completos</p>
             </div>
         </div>
         
@@ -130,6 +143,11 @@
             </div>
         </div>
 
+        <!-- ETIQUETA CONTADOR (NUEVO) -->
+        <div class="contador-container">
+            <span id="contador-resultados" class="contador-badge">Mostrando 0 lentes</span>
+        </div>
+
         <div class="table-responsive">
             <table>
                 <thead>
@@ -149,7 +167,7 @@
                 </tbody>
             </table>
         </div>
-        <p style="text-align: center; margin-top: 20px; color: #666; font-size: 0.9em;">Fuente: IOLexport.xml (GitHub)</p>
+        <p style="text-align: center; margin-top: 20px; color: #666; font-size: 0.9em;">Fuente: IOLexport.xml (GitHub) - Actualización automática</p>
     </div>
 
     <!-- POPUP / MODAL DE DETALLES -->
@@ -180,6 +198,7 @@
         }
 
         function cargarDatos() {
+            // Esta URL descarga el archivo XML DIRECTAMENTE de tu GitHub cada vez que se carga la página
             const url = 'https://raw.githubusercontent.com/globalatsdr/IOLs-Database/main/IOLexport.xml';
             
             fetch(url)
@@ -224,14 +243,11 @@
                         };
 
                         // --- Constantes (Guardamos TODO) ---
-                        // Buscamos las constantes nominales (type="nominal")
                         let constData = {};
                         const constantsList = lente.getElementsByTagName("Constants");
                         for(let i=0; i<constantsList.length; i++) {
                             if(constantsList[i].getAttribute("type") === "nominal") {
                                 const c = constantsList[i];
-                                
-                                // Haigis tiene sub-elementos (a0, a1, a2)
                                 const haigisNode = c.getElementsByTagName("Haigis")[0];
                                 const haigis = haigisNode ? {
                                     a0: getSafeText(haigisNode, "a0"),
@@ -239,7 +255,6 @@
                                     a2: getSafeText(haigisNode, "a2")
                                 } : {};
 
-                                // Barrett tiene sub-elementos
                                 const barrettNode = c.getElementsByTagName("Barrett")[0];
                                 const barrett = barrettNode ? {
                                     LF: getSafeText(barrettNode, "LF"),
@@ -254,7 +269,7 @@
                                     holladay1: getSafeText(c, "Holladay1"),
                                     barrett: barrett
                                 };
-                                break; // Encontramos las nominales, paramos
+                                break;
                             }
                         }
 
@@ -277,7 +292,6 @@
                             }
                         });
 
-                        // Cilindros si existen
                         const cylRanges = availability.getElementsByTagName("Cylinder");
                         let cylText = [];
                         Array.from(cylRanges).forEach(c => {
@@ -286,7 +300,6 @@
                              const inc = getSafeText(c, "Increment");
                              cylText.push(`${from} a ${to} (inc: ${inc})`);
                         });
-
 
                         let rangoTexto = "N/A";
                         if (minPower !== Infinity && maxPower !== -Infinity) {
@@ -297,7 +310,6 @@
                             id: id,
                             fabricante: fabricante,
                             modelo: modelo,
-                            // Datos para la tabla
                             torico: specsData.torico,
                             concepto: specsData.concepto,
                             diseno: specsData.diseno,
@@ -305,14 +317,10 @@
                             rango_max: maxPower === -Infinity ? 0 : maxPower,
                             rango_texto: rangoTexto,
                             material: specsData.material,
-                            // Objeto completo para el popup
                             detalles: {
                                 specs: specsData,
                                 constants: constData,
-                                availability: {
-                                    sphere: rangesText,
-                                    cylinder: cylText
-                                }
+                                availability: { sphere: rangesText, cylinder: cylText }
                             }
                         };
                     });
@@ -326,7 +334,6 @@
                 });
         }
 
-        // Helper para evitar errores
         function getSafeText(parent, tagName) {
             const element = parent.getElementsByTagName(tagName)[0];
             return element ? element.textContent.trim() : "";
@@ -373,6 +380,9 @@
                 return matchFab && matchMod && matchTor && matchCon && matchDis && matchPot;
             });
 
+            // ACTUALIZAR EL CONTADOR (NUEVO)
+            document.getElementById('contador-resultados').textContent = `Mostrando ${filtrados.length} lentes`;
+
             if (filtrados.length === 0) {
                 tbody.innerHTML = "<tr><td colspan='8' style='text-align:center;'>No se encontraron lentes con estos criterios.</td></tr>";
                 return;
@@ -383,7 +393,6 @@
                 const textoTorico = l.torico === 'yes' ? 'Sí' : 'No';
                 const badgeConcepto = l.concepto.includes('multi') ? 'badge-multi' : 'badge-mono';
 
-                // Añadimos onclick="abrirPopup(${l.id})" a la fila
                 const row = `<tr onclick="abrirPopup('${l.id}')" title="Haz clic para ver detalles">
                     <td><small>${l.id}</small></td>
                     <td><strong>${l.fabricante}</strong></td>
@@ -401,7 +410,6 @@
         // --- FUNCIONES DEL POPUP ---
 
         function abrirPopup(id) {
-            // Buscar el lente en el array por ID
             const lente = datosLentes.find(l => l.id === id);
             if(!lente) return;
 
@@ -411,7 +419,6 @@
 
             modalTitle.textContent = `${lente.fabricante} - ${lente.modelo}`;
 
-            // Construimos el HTML del detalle
             let html = `
                 <div class="detail-section">
                     <h3>Información General</h3>
@@ -468,7 +475,6 @@
             document.getElementById('detalle-popup').classList.remove('active');
         }
 
-        // Cerrar popup si se hace clic fuera del contenido
         window.onclick = function(event) {
             const modal = document.getElementById('detalle-popup');
             if (event.target == modal) {
@@ -477,5 +483,4 @@
         }
     </script>
 </body>
-
 </html>
