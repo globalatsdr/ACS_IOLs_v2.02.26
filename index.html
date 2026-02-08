@@ -1,0 +1,480 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Catálogo de Lentes Intraoculares (IOL)</title>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 20px; background-color: #f0f2f5; color: #333; }
+        .container { max-width: 1200px; margin: 0 auto; background: white; padding: 25px; border-radius: 10px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
+        
+        /* Estilos del Encabezado */
+        .header { display: flex; align-items: center; justify-content: center; gap: 20px; margin-bottom: 30px; text-align: center; }
+        .header h1 { margin: 0; color: #2c3e50; font-size: 2em; }
+        .header p { margin: 5px 0 0 0; color: #666; font-size: 1em; }
+        .logo-img { height: 80px; width: auto; object-fit: contain; }
+
+        /* Estilos de Filtros */
+        .filtros { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 20px; margin-bottom: 30px; padding: 20px; background: #eef2f7; border-radius: 8px; border-left: 5px solid #007bff; }
+        .filtro-group label { display: block; font-weight: 600; margin-bottom: 8px; font-size: 0.9em; color: #555; }
+        .filtro-group select, .filtro-group input { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 5px; box-sizing: border-box; font-size: 14px; }
+        
+        /* Tabla de Resultados */
+        .table-responsive { overflow-x: auto; }
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 0.95em; }
+        th, td { padding: 15px; text-align: left; border-bottom: 1px solid #ddd; }
+        th { background-color: #007bff; color: white; white-space: nowrap; }
+        tr:nth-child(even) { background-color: #f9f9f9; }
+        tr:hover { background-color: #e3f2fd; cursor: pointer; } /* Cursor manita para indicar click */
+        
+        /* Etiquetas dentro de la tabla */
+        .badge { padding: 4px 8px; border-radius: 4px; font-size: 0.8em; font-weight: bold; }
+        .badge-torico { background-color: #ffeb3b; color: #333; }
+        .badge-no-torico { background-color: #e0e0e0; color: #555; }
+        .badge-mono { background-color: #d1e7dd; color: #0f5132; }
+        .badge-multi { background-color: #f8d7da; color: #842029; }
+        
+        /* --- ESTILOS DEL POPUP --- */
+        .modal-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.6); z-index: 2000;
+            display: flex; justify-content: center; align-items: center;
+            opacity: 0; pointer-events: none; transition: opacity 0.3s ease;
+        }
+        .modal-overlay.active { opacity: 1; pointer-events: all; }
+        
+        .modal-content {
+            background: white; width: 90%; max-width: 800px; max-height: 90vh;
+            border-radius: 10px; padding: 30px; overflow-y: auto;
+            position: relative; box-shadow: 0 5px 30px rgba(0,0,0,0.3);
+        }
+        .close-btn {
+            position: absolute; top: 15px; right: 20px;
+            font-size: 28px; cursor: pointer; color: #999; font-weight: bold;
+        }
+        .close-btn:hover { color: #333; }
+        
+        .detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-top: 20px; }
+        .detail-section { margin-bottom: 25px; border-bottom: 1px solid #eee; padding-bottom: 15px; }
+        .detail-section h3 { color: #007bff; margin-bottom: 10px; font-size: 1.1em; border-left: 4px solid #007bff; padding-left: 10px; }
+        .detail-item { display: flex; justify-content: space-between; margin-bottom: 8px; border-bottom: 1px dashed #eee; padding-bottom: 2px;}
+        .detail-label { font-weight: 600; color: #555; }
+        .detail-value { text-align: right; color: #333; }
+
+        /* Login */
+        #login-screen { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: white; z-index: 1000; display: flex; flex-direction: column; justify-content: center; align-items: center; }
+        .hidden { display: none !important; }
+        .login-box { padding: 40px; border: 1px solid #ddd; border-radius: 10px; box-shadow: 0 0 20px rgba(0,0,0,0.1); text-align: center; }
+    </style>
+</head>
+<body>
+
+    <!-- PANTALLA DE ACCESO -->
+    <div id="login-screen">
+        <div class="login-box">
+            <h2 style="color:#007bff; margin-bottom: 10px;">Acceso a Catálogo IOL</h2>
+            <p>Introduzca la contraseña autorizada:</p>
+            <input type="password" id="password-input" placeholder="Contraseña" style="padding:10px; width: 200px; margin-bottom: 10px;">
+            <br>
+            <button onclick="checkPassword()" style="padding: 10px 25px; background:#007bff; color:white; border:none; border-radius:5px; cursor:pointer;">Entrar</button>
+            <p id="error-msg" style="color: red; display: none; margin-top:10px;">Contraseña incorrecta</p>
+        </div>
+    </div>
+
+    <!-- APLICACIÓN PRINCIPAL -->
+    <div id="app" class="container hidden">
+        
+        <!-- HEADER CON LOGO -->
+        <div class="header">
+            <img src="logo.png" alt="Logo Institucional" class="logo-img" onerror="this.style.display='none'">
+            <div>
+                <h1>Catálogo de Lentes</h1>
+                <p>Haz clic en una lente para ver detalles completos</p>
+            </div>
+        </div>
+        
+        <div class="filtros">
+            <div class="filtro-group">
+                <label>Fabricante</label>
+                <select id="filtro-fabricante" onchange="filtrarLentes()">
+                    <option value="">Todos</option>
+                </select>
+            </div>
+            <div class="filtro-group">
+                <label>Modelo (Nombre)</label>
+                <input type="text" id="filtro-modelo" placeholder="Ej: 611HPS..." onkeyup="filtrarLentes()">
+            </div>
+            <div class="filtro-group">
+                <label>Tórico</label>
+                <select id="filtro-torico" onchange="filtrarLentes()">
+                    <option value="">Todos</option>
+                    <option value="yes">Sí (Tórico)</option>
+                    <option value="no">No (Esférico)</option>
+                </select>
+            </div>
+            <div class="filtro-group">
+                <label>Concepto Óptico</label>
+                <select id="filtro-concepto" onchange="filtrarLentes()">
+                    <option value="">Todos</option>
+                </select>
+            </div>
+            <div class="filtro-group">
+                <label>Diseño Óptico</label>
+                <select id="filtro-diseno" onchange="filtrarLentes()">
+                    <option value="">Todos</option>
+                </select>
+            </div>
+            <div class="filtro-group">
+                <label>Rango Potencia (D)</label>
+                <input type="number" id="filtro-potencia" placeholder="Buscar valor..." onkeyup="filtrarLentes()">
+            </div>
+        </div>
+
+        <div class="table-responsive">
+            <table>
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Fabricante</th>
+                        <th>Modelo</th>
+                        <th>Tórico</th>
+                        <th>Concepto</th>
+                        <th>Diseño</th>
+                        <th>Rango Potencia (D)</th>
+                        <th>Material</th>
+                    </tr>
+                </thead>
+                <tbody id="tabla-body">
+                    <!-- Los datos se cargarán aquí -->
+                </tbody>
+            </table>
+        </div>
+        <p style="text-align: center; margin-top: 20px; color: #666; font-size: 0.9em;">Fuente: IOLexport.xml (GitHub)</p>
+    </div>
+
+    <!-- POPUP / MODAL DE DETALLES -->
+    <div id="detalle-popup" class="modal-overlay">
+        <div class="modal-content">
+            <span class="close-btn" onclick="cerrarPopup()">&times;</span>
+            <h2 id="modal-title" style="color:#2c3e50; margin-top:0;">Detalle del Lente</h2>
+            
+            <div id="modal-body">
+                <!-- El contenido se generará dinámicamente con JS -->
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let datosLentes = [];
+        const CLAVE_ACCESO = "medicos2024"; // RECUERDA CAMBIAR ESTO
+
+        function checkPassword() {
+            const input = document.getElementById('password-input').value;
+            if (input === CLAVE_ACCESO) {
+                document.getElementById('login-screen').classList.add('hidden');
+                document.getElementById('app').classList.remove('hidden');
+                cargarDatos();
+            } else {
+                document.getElementById('error-msg').style.display = 'block';
+            }
+        }
+
+        function cargarDatos() {
+            const url = 'https://raw.githubusercontent.com/globalatsdr/IOLs-Database/main/IOLexport.xml';
+            
+            fetch(url)
+                .then(response => {
+                    if (!response.ok) throw new Error("Error al conectar con GitHub.");
+                    return response.text();
+                })
+                .then(str => {
+                    const parser = new DOMParser();
+                    const xml = parser.parseFromString(str, "text/xml");
+                    const lentes = xml.getElementsByTagName("Lens");
+
+                    datosLentes = Array.from(lentes).map(lente => {
+                        // --- Datos Básicos ---
+                        const id = lente.getAttribute("id") || "N/A";
+                        const fabricante = getSafeText(lente, "Manufacturer");
+                        const modelo = getSafeText(lente, "Name");
+                        
+                        // --- Especificaciones (Guardamos TODO en un objeto) ---
+                        const specs = lente.getElementsByTagName("Specifications")[0];
+                        const specsData = {
+                            torico: getSafeText(specs, "Toric").toLowerCase(),
+                            material: getSafeText(specs, "OpticMaterial"),
+                            concepto: getSafeText(specs, "OpticConcept"),
+                            diseno: getSafeText(specs, "OpticDesign"),
+                            piezaUnica: getSafeText(specs, "SinglePiece"),
+                            materialHaptico: getSafeText(specs, "HapticMaterial"),
+                            precargado: getSafeText(specs, "Preloaded"),
+                            plegable: getSafeText(specs, "Foldable"),
+                            incision: getSafeText(specs, "IncisionWidth"),
+                            inyector: getSafeText(specs, "InjectorSize"),
+                            hidro: getSafeText(specs, "Hydro"),
+                            filtro: getSafeText(specs, "Filter"),
+                            indiceRefraccion: getSafeText(specs, "RefractiveIndex"),
+                            numeroAbbe: getSafeText(specs, "AbbeNumber"),
+                            diametroOptico: getSafeText(specs, "OpticDiameter"),
+                            diametroTotal: getSafeText(specs, "HapticDiameter"),
+                            disenoHaptico: getSafeText(specs, "HapticDesign"),
+                            ubicacion: getSafeText(specs, "IntendedLocation"),
+                            aberracion: getSafeText(specs, "Aberration"),
+                            saCorrection: getSafeText(specs, "saCorrection")
+                        };
+
+                        // --- Constantes (Guardamos TODO) ---
+                        // Buscamos las constantes nominales (type="nominal")
+                        let constData = {};
+                        const constantsList = lente.getElementsByTagName("Constants");
+                        for(let i=0; i<constantsList.length; i++) {
+                            if(constantsList[i].getAttribute("type") === "nominal") {
+                                const c = constantsList[i];
+                                
+                                // Haigis tiene sub-elementos (a0, a1, a2)
+                                const haigisNode = c.getElementsByTagName("Haigis")[0];
+                                const haigis = haigisNode ? {
+                                    a0: getSafeText(haigisNode, "a0"),
+                                    a1: getSafeText(haigisNode, "a1"),
+                                    a2: getSafeText(haigisNode, "a2")
+                                } : {};
+
+                                // Barrett tiene sub-elementos
+                                const barrettNode = c.getElementsByTagName("Barrett")[0];
+                                const barrett = barrettNode ? {
+                                    LF: getSafeText(barrettNode, "LF"),
+                                    DF: getSafeText(barrettNode, "DF")
+                                } : {};
+
+                                constData = {
+                                    ultrasound: getSafeText(c, "Ultrasound"), // A-Constant
+                                    srkt: getSafeText(c, "SRKt"),
+                                    haigis: haigis,
+                                    hofferQ: getSafeText(c, "HofferQ"),
+                                    holladay1: getSafeText(c, "Holladay1"),
+                                    barrett: barrett
+                                };
+                                break; // Encontramos las nominales, paramos
+                            }
+                        }
+
+                        // --- Disponibilidad (Rangos) ---
+                        const availability = lente.getElementsByTagName("Availability")[0];
+                        const sphereRanges = availability.getElementsByTagName("Sphere");
+                        
+                        let minPower = Infinity;
+                        let maxPower = -Infinity;
+                        let rangesText = [];
+
+                        Array.from(sphereRanges).forEach(r => {
+                            const from = parseFloat(getSafeText(r, "From"));
+                            const to = parseFloat(getSafeText(r, "To"));
+                            const inc = getSafeText(r, "Increment");
+                            if (!isNaN(from) && from < minPower) minPower = from;
+                            if (!isNaN(to) && to > maxPower) maxPower = to;
+                            if(!isNaN(from) && !isNaN(to)) {
+                                rangesText.push(`De ${from} a ${to} (inc: ${inc})`);
+                            }
+                        });
+
+                        // Cilindros si existen
+                        const cylRanges = availability.getElementsByTagName("Cylinder");
+                        let cylText = [];
+                        Array.from(cylRanges).forEach(c => {
+                             const from = getSafeText(c, "From");
+                             const to = getSafeText(c, "To");
+                             const inc = getSafeText(c, "Increment");
+                             cylText.push(`${from} a ${to} (inc: ${inc})`);
+                        });
+
+
+                        let rangoTexto = "N/A";
+                        if (minPower !== Infinity && maxPower !== -Infinity) {
+                            rangoTexto = `${minPower} a ${maxPower}`;
+                        }
+
+                        return {
+                            id: id,
+                            fabricante: fabricante,
+                            modelo: modelo,
+                            // Datos para la tabla
+                            torico: specsData.torico,
+                            concepto: specsData.concepto,
+                            diseno: specsData.diseno,
+                            rango_min: minPower === Infinity ? 0 : minPower,
+                            rango_max: maxPower === -Infinity ? 0 : maxPower,
+                            rango_texto: rangoTexto,
+                            material: specsData.material,
+                            // Objeto completo para el popup
+                            detalles: {
+                                specs: specsData,
+                                constants: constData,
+                                availability: {
+                                    sphere: rangesText,
+                                    cylinder: cylText
+                                }
+                            }
+                        };
+                    });
+
+                    poblarFiltrosDinamicos();
+                    filtrarLentes();
+                })
+                .catch(error => {
+                    console.error(error);
+                    document.getElementById('tabla-body').innerHTML = `<tr><td colspan='8' style='text-align:center; color:red;'>${error.message}</td></tr>`;
+                });
+        }
+
+        // Helper para evitar errores
+        function getSafeText(parent, tagName) {
+            const element = parent.getElementsByTagName(tagName)[0];
+            return element ? element.textContent.trim() : "";
+        }
+
+        function poblarFiltrosDinamicos() {
+            const llenarSelect = (id, datos) => {
+                const select = document.getElementById(id);
+                while (select.options.length > 1) { select.remove(1); }
+                const valoresUnicos = [...new Set(datos)].sort();
+                valoresUnicos.forEach(val => {
+                    if(val) {
+                        const option = document.createElement('option');
+                        option.value = val;
+                        option.textContent = val.charAt(0).toUpperCase() + val.slice(1);
+                        select.appendChild(option);
+                    }
+                });
+            };
+
+            llenarSelect('filtro-fabricante', datosLentes.map(l => l.fabricante));
+            llenarSelect('filtro-concepto', datosLentes.map(l => l.concepto));
+            llenarSelect('filtro-diseno', datosLentes.map(l => l.diseno));
+        }
+
+        function filtrarLentes() {
+            const fFab = document.getElementById('filtro-fabricante').value;
+            const fMod = document.getElementById('filtro-modelo').value.toLowerCase();
+            const fTor = document.getElementById('filtro-torico').value;
+            const fCon = document.getElementById('filtro-concepto').value;
+            const fDis = document.getElementById('filtro-diseno').value;
+            const fPot = parseFloat(document.getElementById('filtro-potencia').value) || 0;
+
+            const tbody = document.getElementById('tabla-body');
+            tbody.innerHTML = "";
+
+            const filtrados = datosLentes.filter(l => {
+                const matchFab = fFab === "" || l.fabricante === fFab;
+                const matchMod = l.modelo.toLowerCase().includes(fMod);
+                const matchTor = fTor === "" || l.torico === fTor;
+                const matchCon = fCon === "" || l.concepto === fCon;
+                const matchDis = fDis === "" || l.diseno === fDis;
+                const matchPot = fPot === 0 || (l.rango_min <= fPot && l.rango_max >= fPot);
+                return matchFab && matchMod && matchTor && matchCon && matchDis && matchPot;
+            });
+
+            if (filtrados.length === 0) {
+                tbody.innerHTML = "<tr><td colspan='8' style='text-align:center;'>No se encontraron lentes con estos criterios.</td></tr>";
+                return;
+            }
+
+            filtrados.forEach(l => {
+                const badgeTorico = l.torico === 'yes' ? 'badge-torico' : 'badge-no-torico';
+                const textoTorico = l.torico === 'yes' ? 'Sí' : 'No';
+                const badgeConcepto = l.concepto.includes('multi') ? 'badge-multi' : 'badge-mono';
+
+                // Añadimos onclick="abrirPopup(${l.id})" a la fila
+                const row = `<tr onclick="abrirPopup('${l.id}')" title="Haz clic para ver detalles">
+                    <td><small>${l.id}</small></td>
+                    <td><strong>${l.fabricante}</strong></td>
+                    <td>${l.modelo}</td>
+                    <td><span class="badge ${badgeTorico}">${textoTorico}</span></td>
+                    <td><span class="badge ${badgeConcepto}">${l.concepto}</span></td>
+                    <td>${l.diseno}</td>
+                    <td>${l.rango_texto}</td>
+                    <td>${l.material}</td>
+                </tr>`;
+                tbody.innerHTML += row;
+            });
+        }
+
+        // --- FUNCIONES DEL POPUP ---
+
+        function abrirPopup(id) {
+            // Buscar el lente en el array por ID
+            const lente = datosLentes.find(l => l.id === id);
+            if(!lente) return;
+
+            const d = lente.detalles;
+            const modalBody = document.getElementById('modal-body');
+            const modalTitle = document.getElementById('modal-title');
+
+            modalTitle.textContent = `${lente.fabricante} - ${lente.modelo}`;
+
+            // Construimos el HTML del detalle
+            let html = `
+                <div class="detail-section">
+                    <h3>Información General</h3>
+                    <div class="detail-grid">
+                        <div class="detail-item"><span class="detail-label">ID:</span> <span class="detail-value">${lente.id}</span></div>
+                        <div class="detail-item"><span class="detail-label">Tórico:</span> <span class="detail-value">${d.specs.torico === 'yes' ? 'Sí' : 'No'}</span></div>
+                        <div class="detail-item"><span class="detail-label">Material:</span> <span class="detail-value">${d.specs.material}</span></div>
+                        <div class="detail-item"><span class="detail-label">Plegable:</span> <span class="detail-value">${d.specs.plegable}</span></div>
+                        <div class="detail-item"><span class="detail-label">Incisión (mm):</span> <span class="detail-value">${d.specs.incision}</span></div>
+                        <div class="detail-item"><span class="detail-label">Índice Refracción:</span> <span class="detail-value">${d.specs.indiceRefraccion}</span></div>
+                    </div>
+                </div>
+
+                <div class="detail-section">
+                    <h3>Diseño y Dimensiones</h3>
+                    <div class="detail-grid">
+                        <div class="detail-item"><span class="detail-label">Concepto:</span> <span class="detail-value">${d.specs.concepto}</span></div>
+                        <div class="detail-item"><span class="detail-label">Diseño Óptico:</span> <span class="detail-value">${d.specs.diseno}</span></div>
+                        <div class="detail-item"><span class="detail-label">Diámetro Óptico:</span> <span class="detail-value">${d.specs.diametroOptico}</span></div>
+                        <div class="detail-item"><span class="detail-label">Diámetro Total:</span> <span class="detail-value">${d.specs.diametroTotal}</span></div>
+                        <div class="detail-item"><span class="detail-label">Diseño Háptico:</span> <span class="detail-value">${d.specs.disenoHaptico}</span></div>
+                        <div class="detail-item"><span class="detail-label">Ubicación:</span> <span class="detail-value">${d.specs.ubicacion}</span></div>
+                    </div>
+                </div>
+
+                <div class="detail-section">
+                    <h3>Constantes (Nominales)</h3>
+                    <div class="detail-grid">
+                        <div class="detail-item" style="color:#007bff; font-weight:bold;"><span class="detail-label">A-Const (US):</span> <span class="detail-value">${d.constants.ultrasound || 'N/A'}</span></div>
+                        <div class="detail-item"><span class="detail-label">SRK/T:</span> <span class="detail-value">${d.constants.srkt || 'N/A'}</span></div>
+                        <div class="detail-item"><span class="detail-label">Hoffer Q:</span> <span class="detail-value">${d.constants.hofferQ || 'N/A'}</span></div>
+                        <div class="detail-item"><span class="detail-label">Holladay 1:</span> <span class="detail-value">${d.constants.holladay1 || 'N/A'}</span></div>
+                    </div>
+                    ${d.constants.haigis && (d.constants.haigis.a0 || d.constants.haigis.a1 || d.constants.haigis.a2) ? `
+                    <div class="detail-grid" style="margin-top:10px; background:#f9f9f9; padding:10px; border-radius:5px;">
+                         <div class="detail-item"><span class="detail-label">Haigis a0:</span> <span class="detail-value">${d.constants.haigis.a0}</span></div>
+                         <div class="detail-item"><span class="detail-label">Haigis a1:</span> <span class="detail-value">${d.constants.haigis.a1}</span></div>
+                         <div class="detail-item"><span class="detail-label">Haigis a2:</span> <span class="detail-value">${d.constants.haigis.a2}</span></div>
+                    </div>` : ''}
+                </div>
+
+                <div class="detail-section">
+                    <h3>Disponibilidad</h3>
+                    <p><strong>Esfera:</strong> ${d.availability.sphere.length > 0 ? d.availability.sphere.join(' | ') : 'N/A'}</p>
+                    <p><strong>Cilindro:</strong> ${d.availability.cylinder.length > 0 ? d.availability.cylinder.join(' | ') : 'No es tórico o sin datos'}</p>
+                </div>
+            `;
+
+            modalBody.innerHTML = html;
+            document.getElementById('detalle-popup').classList.add('active');
+        }
+
+        function cerrarPopup() {
+            document.getElementById('detalle-popup').classList.remove('active');
+        }
+
+        // Cerrar popup si se hace clic fuera del contenido
+        window.onclick = function(event) {
+            const modal = document.getElementById('detalle-popup');
+            if (event.target == modal) {
+                cerrarPopup();
+            }
+        }
+    </script>
+</body>
+</html>
