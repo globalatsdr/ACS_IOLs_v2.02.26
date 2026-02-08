@@ -34,8 +34,10 @@
             font-weight: bold; font-size: 1.1em;
             box-shadow: 0 4px 15px rgba(0,0,0,0.3);
             cursor: pointer; z-index: 1500;
-            display: none; border: none; transition: transform 0.2s;
+            display: none; border: none; transition: transform 0.2s, opacity 0.3s;
+            opacity: 0;
         }
+        #btn-ver-comparacion.visible { display: block; opacity: 1; }
         #btn-ver-comparacion:hover { transform: scale(1.05); background-color: #218838; }
 
         /* Estilos de Filtros */
@@ -473,10 +475,8 @@
             if(!esModoComparar) {
                 idsSeleccionados = [];
                 actualizarBotonComparacion();
-                // Forzar repintado para quitar clases visuales
                 filtrarLentes(); 
             } else {
-                // Si activamos, aseguramos que el botón de comparación se resetee visualmente
                 actualizarBotonComparacion();
             }
         }
@@ -502,26 +502,35 @@
             const numSpan = document.getElementById('num-seleccionados');
             numSpan.textContent = idsSeleccionados.length;
             
-            // MEJORA: Mostrar botón si hay al menos 1 seleccionado en modo comparar
-            if (esModoComparar && idsSeleccionados.length > 0) {
-                btn.style.display = 'block';
+            // CORRECCIÓN CLAVE: Solo mostrar el botón si hay 2 o más lentes seleccionados
+            // Esto evita que el usuario haga clic en el botón con 1 sola lente y piense que falla.
+            if (esModoComparar && idsSeleccionados.length >= 2) {
+                btn.classList.add('visible');
             } else {
-                btn.style.display = 'none';
+                btn.classList.remove('visible');
             }
         }
 
         function abrirComparacion() {
-            // Validar que haya al menos 2 lentes
+            // Seguridad extra por si se llama a la función de alguna otra forma
             if (idsSeleccionados.length < 2) {
-                alert("Por favor, selecciona al menos 2 lentes para comparar.");
+                console.warn("Se intentó comparar con menos de 2 lentes.");
                 return;
             }
 
             const lentesComparar = datosLentes.filter(l => idsSeleccionados.includes(l.id));
+            
+            if (lentesComparar.length === 0) {
+                alert("Error: No se encontraron los lentes seleccionados. Intenta seleccionarlos de nuevo.");
+                return;
+            }
+
             const modalBody = document.getElementById('modal-body');
             const modalTitle = document.getElementById('modal-title');
+            const modalPopup = document.getElementById('detalle-popup');
 
             modalTitle.textContent = "Comparación de Lentes";
+            modalBody.innerHTML = ""; // Limpiar antes de escribir
             
             let html = '<div class="comparison-grid">';
             
@@ -598,7 +607,13 @@
             
             html += '</div>';
             modalBody.innerHTML = html;
-            document.getElementById('detalle-popup').classList.add('active');
+            
+            // Forzar apertura del modal
+            if(modalPopup) {
+                modalPopup.classList.add('active');
+            } else {
+                alert("Error crítico: No se encontró el elemento modal en la página.");
+            }
         }
 
         function filtrarLentes() {
@@ -635,7 +650,6 @@
                 const badgeConcepto = l.concepto.includes('multi') ? 'badge-multi' : 'badge-mono';
                 const rowId = `row-${l.id}`;
 
-                // CORRECCIÓN: Comprobar si ya está seleccionado para mantener el azul
                 const isSelected = idsSeleccionados.includes(l.id);
                 const selectedClass = isSelected ? 'selected-row' : '';
 
@@ -744,5 +758,5 @@
     </script>
 </body>
 </html>
-</html>
+
 
