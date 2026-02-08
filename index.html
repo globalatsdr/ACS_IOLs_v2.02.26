@@ -93,7 +93,7 @@
             grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
             gap: 20px;
             margin-top: 20px;
-            align-items: start; /* Para que las tarjetas no se estiren */
+            align-items: start;
         }
         .lente-card {
             border: 1px solid #ddd;
@@ -101,7 +101,7 @@
             padding: 20px;
             background: #fff;
             box-shadow: 0 2px 5px rgba(0,0,0,0.05);
-            height: 100%; /* Todas las tarjetas igual de alto */
+            height: 100%;
             display: flex;
             flex-direction: column;
         }
@@ -131,11 +131,11 @@
             font-weight: normal;
             vertical-align: middle;
         }
-        .type-opt { background-color: #d1e7dd; color: #0f5132; } /* Verde para Optimizada */
-        .type-nom { background-color: #fff3cd; color: #664d03; } /* Amarillo para Nominal */
-        .type-ulib { background-color: #e2e3e5; color: #41464b; } /* Gris para ULIB */
+        .type-opt { background-color: #d1e7dd; color: #0f5132; } 
+        .type-nom { background-color: #fff3cd; color: #664d03; } 
+        .type-ulib { background-color: #e2e3e5; color: #41464b; } 
         
-        .highlight-val { color: #d63384; font-weight: bold; } /* Rosa para A-Const */
+        .highlight-val { color: #d63384; font-weight: bold; } 
 
         /* Login */
         #login-screen { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: white; z-index: 1000; display: flex; flex-direction: column; justify-content: center; align-items: center; }
@@ -266,7 +266,7 @@
         let datosLentes = [];
         let idsSeleccionados = [];
         let esModoComparar = false;
-        const CLAVE_ACCESO = "medicos2024"; // RECUERDA CAMBIAR ESTO
+        const CLAVE_ACCESO = "medicos2024"; 
 
         function checkPassword() {
             const input = document.getElementById('password-input').value;
@@ -321,14 +321,12 @@
                             saCorrection: getSafeText(specs, "saCorrection")
                         };
 
-                        // --- GUARDAR TODAS LAS CONSTANTES (Optimizadas, Nominales, ULIB) ---
                         const constantsList = lente.getElementsByTagName("Constants");
                         const allConstants = { optimized: {}, nominal: {}, ulib: {} };
 
                         Array.from(constantsList).forEach(c => {
-                            const type = c.getAttribute("type"); // "optimized", "nominal", etc.
+                            const type = c.getAttribute("type"); 
                             
-                            // Extraer Haigis
                             const haigisNode = c.getElementsByTagName("Haigis")[0];
                             const haigis = haigisNode ? {
                                 a0: getSafeText(haigisNode, "a0"),
@@ -336,14 +334,12 @@
                                 a2: getSafeText(haigisNode, "a2")
                             } : {};
 
-                            // Extraer Barrett
                             const barrettNode = c.getElementsByTagName("Barrett")[0];
                             const barrett = barrettNode ? {
                                 LF: getSafeText(barrettNode, "LF"),
                                 DF: getSafeText(barrettNode, "DF")
                             } : {};
 
-                            // Guardar en el bucket correspondiente
                             if(allConstants[type] !== undefined) {
                                 allConstants[type] = {
                                     ultrasound: getSafeText(c, "Ultrasound"),
@@ -401,7 +397,7 @@
                             material: specsData.material,
                             detalles: {
                                 specs: specsData,
-                                constants: allConstants, // Guardamos los 3 tipos
+                                constants: allConstants,
                                 availability: { sphere: rangesText, cylinder: cylText }
                             }
                         };
@@ -421,23 +417,19 @@
             return element ? element.textContent.trim() : "";
         }
 
-        // --- FUNCIÓN CLAVE: OBTENER LA MEJOR CONSTANTE ---
         function getBestConstant(lente, key) {
             const c = lente.detalles.constants;
             let val = null;
             let type = "";
 
-            // 1. Prioridad: Optimizada
             if (c.optimized && c.optimized[key] && c.optimized[key].trim() !== "") {
                 val = c.optimized[key];
                 type = "Opt";
             } 
-            // 2. Prioridad: Nominal
             else if (c.nominal && c.nominal[key] && c.nominal[key].trim() !== "") {
                 val = c.nominal[key];
                 type = "Nom";
             }
-            // 3. Prioridad: ULIB
             else if (c.ulib && c.ulib[key] && c.ulib[key].trim() !== "") {
                 val = c.ulib[key];
                 type = "ULIB";
@@ -446,10 +438,8 @@
             return { value: val || "N/A", type: type };
         }
 
-        // --- FUNCIÓN PARA HAIGIS (Objeto anidado) ---
         function getBestHaigis(lente) {
             const c = lente.detalles.constants;
-            // Verificamos si hay al menos un dato en Optimizada
             const optValid = c.optimized.haigis && (c.optimized.haigis.a0 || c.optimized.haigis.a1 || c.optimized.haigis.a2);
             
             if (optValid) return { data: c.optimized.haigis, type: "Opt" };
@@ -483,7 +473,11 @@
             if(!esModoComparar) {
                 idsSeleccionados = [];
                 actualizarBotonComparacion();
-                document.querySelectorAll('.selected-row').forEach(row => row.classList.remove('selected-row'));
+                // Forzar repintado para quitar clases visuales
+                filtrarLentes(); 
+            } else {
+                // Si activamos, aseguramos que el botón de comparación se resetee visualmente
+                actualizarBotonComparacion();
             }
         }
 
@@ -507,7 +501,9 @@
             const btn = document.getElementById('btn-ver-comparacion');
             const numSpan = document.getElementById('num-seleccionados');
             numSpan.textContent = idsSeleccionados.length;
-            if (esModoComparar && idsSeleccionados.length >= 2) {
+            
+            // MEJORA: Mostrar botón si hay al menos 1 seleccionado en modo comparar
+            if (esModoComparar && idsSeleccionados.length > 0) {
                 btn.style.display = 'block';
             } else {
                 btn.style.display = 'none';
@@ -515,6 +511,12 @@
         }
 
         function abrirComparacion() {
+            // Validar que haya al menos 2 lentes
+            if (idsSeleccionados.length < 2) {
+                alert("Por favor, selecciona al menos 2 lentes para comparar.");
+                return;
+            }
+
             const lentesComparar = datosLentes.filter(l => idsSeleccionados.includes(l.id));
             const modalBody = document.getElementById('modal-body');
             const modalTitle = document.getElementById('modal-title');
@@ -525,16 +527,13 @@
             
             lentesComparar.forEach(l => {
                 const d = l.detalles.specs;
-                
-                // Obtener mejores constantes
                 const aConst = getBestConstant(l, 'ultrasound');
                 const srkt = getBestConstant(l, 'srkt');
                 const hofferQ = getBestConstant(l, 'hofferQ');
                 const holladay1 = getBestConstant(l, 'holladay1');
                 const haigis = getBestHaigis(l);
-                const barrett = getBestConstant(l, 'barrett'); // Barrett puede ser complejo, simplificamos
+                const barrett = getBestConstant(l, 'barrett'); 
 
-                // Función auxiliar para badge de tipo
                 const getTypeBadge = (type) => {
                     if(!type) return '';
                     let cls = type === 'Opt' ? 'type-opt' : (type === 'Nom' ? 'type-nom' : 'type-ulib');
@@ -636,7 +635,11 @@
                 const badgeConcepto = l.concepto.includes('multi') ? 'badge-multi' : 'badge-mono';
                 const rowId = `row-${l.id}`;
 
-                const row = `<tr id="${rowId}" onclick="manejarClickFila('${l.id}', this)" title="${esModoComparar ? 'Clic para seleccionar' : 'Clic para ver detalles'}">
+                // CORRECCIÓN: Comprobar si ya está seleccionado para mantener el azul
+                const isSelected = idsSeleccionados.includes(l.id);
+                const selectedClass = isSelected ? 'selected-row' : '';
+
+                const row = `<tr id="${rowId}" class="${selectedClass}" onclick="manejarClickFila('${l.id}', this)" title="${esModoComparar ? 'Clic para seleccionar' : 'Clic para ver detalles'}">
                     <td><small>${l.id}</small></td>
                     <td><strong>${l.fabricante}</strong></td>
                     <td>${l.modelo}</td>
@@ -660,7 +663,6 @@
 
             modalTitle.textContent = `${lente.fabricante} - ${lente.modelo}`;
 
-            // Usamos las mismas funciones de "Mejor Constante" para la vista individual también
             const aConst = getBestConstant(lente, 'ultrasound');
             const srkt = getBestConstant(lente, 'srkt');
             const hofferQ = getBestConstant(lente, 'hofferQ');
@@ -742,3 +744,5 @@
     </script>
 </body>
 </html>
+</html>
+
