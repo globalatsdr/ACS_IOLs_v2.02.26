@@ -160,7 +160,6 @@
     </div>
 
     <!-- BOTÓN FLOTANTE PARA COMPARAR -->
-    <!-- CAMBIO: Eliminado onclick="abrirComparacion()" para manejarlo en JS -->
     <button id="btn-ver-comparacion" type="button">
         Ver Comparación (<span id="num-seleccionados">0</span>)
     </button>
@@ -266,7 +265,7 @@
     </div>
 
     <script>
-        // --- 1. CAPTURADOR DE ERRORES GLOBAL ---
+        // --- CAPTURADOR DE ERRORES GLOBAL ---
         window.onerror = function(message, source, lineno, colno, error) {
             alert("ERROR DE JAVASCRIPT:\n" + message + "\nLínea: " + lineno);
             return false;
@@ -424,28 +423,47 @@
                 });
         }
 
+        // --- FUNCIÓN CORREGIDA Y ROBUSTA ---
         function getBestConstant(lente, key) {
             const c = lente.detalles.constants;
             if(!c) return { value: "N/A", type: "" };
-            let val = null;
+
+            // Helper seguro para obtener valor y hacer trim
+            const getSafeVal = (source, k) => {
+                const val = source ? source[k] : null;
+                return (typeof val === 'string') ? val.trim() : "";
+            };
+
+            let val = "";
             let type = "";
-            if (c.optimized && c.optimized[key] && c.optimized[key].trim() !== "") {
-                val = c.optimized[key]; type = "Opt";
-            } else if (c.nominal && c.nominal[key] && c.nominal[key].trim() !== "") {
-                val = c.nominal[key]; type = "Nom";
-            } else if (c.ulib && c.ulib[key] && c.ulib[key].trim() !== "") {
-                val = c.ulib[key]; type = "ULIB";
+
+            // 1. CORRECCIÓN: Usamos 'optimized' (con D), no 'optimize'
+            if (c.optimized && getSafeVal(c.optimized, key) !== "") {
+                val = getSafeVal(c.optimized, key);
+                type = "Opt";
+            } 
+            else if (c.nominal && getSafeVal(c.nominal, key) !== "") {
+                val = getSafeVal(c.nominal, key);
+                type = "Nom";
             }
+            else if (c.ulib && getSafeVal(c.ulib, key) !== "") {
+                val = getSafeVal(c.ulib, key);
+                type = "ULIB";
+            }
+
             return { value: val || "N/A", type: type };
         }
 
         function getBestHaigis(lente) {
             const c = lente.detalles.constants;
             if(!c) return { data: { a0: "N/A", a1: "N/A", a2: "N/A" }, type: "" };
+            
             const optValid = c.optimized.haigis && (c.optimized.haigis.a0 || c.optimized.haigis.a1 || c.optimized.haigis.a2);
             if (optValid) return { data: c.optimized.haigis, type: "Opt" };
+            
             if (c.nominal.haigis && (c.nominal.haigis.a0 || c.nominal.haigis.a1 || c.nominal.haigis.a2)) return { data: c.nominal.haigis, type: "Nom" };
             if (c.ulib.haigis && (c.ulib.haigis.a0 || c.ulib.haigis.a1 || c.ulib.haigis.a2)) return { data: c.ulib.haigis, type: "ULIB" };
+            
             return { data: { a0: "N/A", a1: "N/A", a2: "N/A" }, type: "" };
         }
 
@@ -506,20 +524,15 @@
             }
         }
 
-        // --- 2. FUNCIÓN DE COMPARACIÓN ROBUSTA ---
         function abrirComparacion() {
             const btn = document.getElementById('btn-ver-comparacion');
             const originalText = btn.innerHTML;
-            
-            // Feedback visual inmediato
             btn.innerHTML = "Procesando...";
             
             try {
-                console.log("Comparar iniciado. IDs:", idsSeleccionados);
-
                 if (idsSeleccionados.length < 2) {
                     alert("Por favor, selecciona al menos 2 lentes para comparar.");
-                    btn.innerHTML = originalText; // Restaurar texto
+                    btn.innerHTML = originalText; 
                     return;
                 }
 
@@ -610,7 +623,6 @@
                 
                 if(modalPopup) {
                     modalPopup.classList.add('active');
-                    console.log("Modal activado");
                 } else {
                     alert("Error: No se encontró el contenedor del popup.");
                 }
@@ -618,7 +630,6 @@
                 alert("Ha ocurrido un error inesperado al comparar:\n" + e.message);
                 console.error(e);
             } finally {
-                // Restaurar texto del botón siempre
                 if(btn) btn.innerHTML = originalText;
             }
         }
@@ -759,20 +770,16 @@
             }
         }
 
-        // --- 3. CONEXIÓN DEL EVENTO AL FINAL ---
-        // Esto asegura que la función existe antes de conectarla
         document.addEventListener("DOMContentLoaded", function() {
             const btn = document.getElementById('btn-ver-comparacion');
             if (btn) {
                 btn.addEventListener('click', abrirComparacion);
-                console.log("Evento del botón comparar conectado correctamente.");
-            } else {
-                console.error("No se encontró el botón btn-ver-comparacion");
             }
         });
     </script>
 </body>
 </html>
+
 
 
 
