@@ -160,7 +160,8 @@
     </div>
 
     <!-- BOTÓN FLOTANTE PARA COMPARAR -->
-    <button id="btn-ver-comparacion" onclick="abrirComparacion()">
+    <!-- CAMBIO: Eliminado onclick="abrirComparacion()" para manejarlo en JS -->
+    <button id="btn-ver-comparacion" type="button">
         Ver Comparación (<span id="num-seleccionados">0</span>)
     </button>
 
@@ -265,6 +266,12 @@
     </div>
 
     <script>
+        // --- 1. CAPTURADOR DE ERRORES GLOBAL ---
+        window.onerror = function(message, source, lineno, colno, error) {
+            alert("ERROR DE JAVASCRIPT:\n" + message + "\nLínea: " + lineno);
+            return false;
+        };
+
         let datosLentes = [];
         let idsSeleccionados = [];
         let esModoComparar = false;
@@ -279,6 +286,12 @@
             } else {
                 document.getElementById('error-msg').style.display = 'block';
             }
+        }
+
+        function getSafeText(parent, tagName) {
+            if (!parent) return "";
+            const element = parent.getElementsByTagName(tagName)[0];
+            return element ? element.textContent.trim() : "";
         }
 
         function cargarDatos() {
@@ -299,7 +312,7 @@
                         const fabricante = getSafeText(lente, "Manufacturer");
                         const modelo = getSafeText(lente, "Name");
                         
-                        const specs = lente.getElementsByTagName("Specifications")[0];
+                        const specs = lente.getElementsByTagName("Specifications")[0] || {}; 
                         const specsData = {
                             torico: getSafeText(specs, "Toric").toLowerCase(),
                             material: getSafeText(specs, "OpticMaterial"),
@@ -328,20 +341,17 @@
 
                         Array.from(constantsList).forEach(c => {
                             const type = c.getAttribute("type"); 
-                            
                             const haigisNode = c.getElementsByTagName("Haigis")[0];
                             const haigis = haigisNode ? {
                                 a0: getSafeText(haigisNode, "a0"),
                                 a1: getSafeText(haigisNode, "a1"),
                                 a2: getSafeText(haigisNode, "a2")
                             } : {};
-
                             const barrettNode = c.getElementsByTagName("Barrett")[0];
                             const barrett = barrettNode ? {
                                 LF: getSafeText(barrettNode, "LF"),
                                 DF: getSafeText(barrettNode, "DF")
                             } : {};
-
                             if(allConstants[type] !== undefined) {
                                 allConstants[type] = {
                                     ultrasound: getSafeText(c, "Ultrasound"),
@@ -354,7 +364,7 @@
                             }
                         });
 
-                        const availability = lente.getElementsByTagName("Availability")[0];
+                        const availability = lente.getElementsByTagName("Availability")[0] || {};
                         const sphereRanges = availability.getElementsByTagName("Sphere");
                         
                         let minPower = Infinity;
@@ -414,36 +424,25 @@
                 });
         }
 
-        function getSafeText(parent, tagName) {
-            const element = parent.getElementsByTagName(tagName)[0];
-            return element ? element.textContent.trim() : "";
-        }
-
         function getBestConstant(lente, key) {
             const c = lente.detalles.constants;
+            if(!c) return { value: "N/A", type: "" };
             let val = null;
             let type = "";
-
             if (c.optimized && c.optimized[key] && c.optimized[key].trim() !== "") {
-                val = c.optimized[key];
-                type = "Opt";
-            } 
-            else if (c.nominal && c.nominal[key] && c.nominal[key].trim() !== "") {
-                val = c.nominal[key];
-                type = "Nom";
+                val = c.optimized[key]; type = "Opt";
+            } else if (c.nominal && c.nominal[key] && c.nominal[key].trim() !== "") {
+                val = c.nominal[key]; type = "Nom";
+            } else if (c.ulib && c.ulib[key] && c.ulib[key].trim() !== "") {
+                val = c.ulib[key]; type = "ULIB";
             }
-            else if (c.ulib && c.ulib[key] && c.ulib[key].trim() !== "") {
-                val = c.ulib[key];
-                type = "ULIB";
-            }
-
             return { value: val || "N/A", type: type };
         }
 
         function getBestHaigis(lente) {
             const c = lente.detalles.constants;
+            if(!c) return { data: { a0: "N/A", a1: "N/A", a2: "N/A" }, type: "" };
             const optValid = c.optimized.haigis && (c.optimized.haigis.a0 || c.optimized.haigis.a1 || c.optimized.haigis.a2);
-            
             if (optValid) return { data: c.optimized.haigis, type: "Opt" };
             if (c.nominal.haigis && (c.nominal.haigis.a0 || c.nominal.haigis.a1 || c.nominal.haigis.a2)) return { data: c.nominal.haigis, type: "Nom" };
             if (c.ulib.haigis && (c.ulib.haigis.a0 || c.ulib.haigis.a1 || c.ulib.haigis.a2)) return { data: c.ulib.haigis, type: "ULIB" };
@@ -464,7 +463,6 @@
                     }
                 });
             };
-
             llenarSelect('filtro-fabricante', datosLentes.map(l => l.fabricante));
             llenarSelect('filtro-concepto', datosLentes.map(l => l.concepto));
             llenarSelect('filtro-diseno', datosLentes.map(l => l.diseno));
@@ -501,9 +499,6 @@
             const btn = document.getElementById('btn-ver-comparacion');
             const numSpan = document.getElementById('num-seleccionados');
             numSpan.textContent = idsSeleccionados.length;
-            
-            // CORRECCIÓN CLAVE: Solo mostrar el botón si hay 2 o más lentes seleccionados
-            // Esto evita que el usuario haga clic en el botón con 1 sola lente y piense que falla.
             if (esModoComparar && idsSeleccionados.length >= 2) {
                 btn.classList.add('visible');
             } else {
@@ -511,108 +506,120 @@
             }
         }
 
+        // --- 2. FUNCIÓN DE COMPARACIÓN ROBUSTA ---
         function abrirComparacion() {
-            // Seguridad extra por si se llama a la función de alguna otra forma
-            if (idsSeleccionados.length < 2) {
-                console.warn("Se intentó comparar con menos de 2 lentes.");
-                return;
-            }
-
-            const lentesComparar = datosLentes.filter(l => idsSeleccionados.includes(l.id));
+            const btn = document.getElementById('btn-ver-comparacion');
+            const originalText = btn.innerHTML;
             
-            if (lentesComparar.length === 0) {
-                alert("Error: No se encontraron los lentes seleccionados. Intenta seleccionarlos de nuevo.");
-                return;
-            }
-
-            const modalBody = document.getElementById('modal-body');
-            const modalTitle = document.getElementById('modal-title');
-            const modalPopup = document.getElementById('detalle-popup');
-
-            modalTitle.textContent = "Comparación de Lentes";
-            modalBody.innerHTML = ""; // Limpiar antes de escribir
+            // Feedback visual inmediato
+            btn.innerHTML = "Procesando...";
             
-            let html = '<div class="comparison-grid">';
-            
-            lentesComparar.forEach(l => {
-                const d = l.detalles.specs;
-                const aConst = getBestConstant(l, 'ultrasound');
-                const srkt = getBestConstant(l, 'srkt');
-                const hofferQ = getBestConstant(l, 'hofferQ');
-                const holladay1 = getBestConstant(l, 'holladay1');
-                const haigis = getBestHaigis(l);
-                const barrett = getBestConstant(l, 'barrett'); 
+            try {
+                console.log("Comparar iniciado. IDs:", idsSeleccionados);
 
-                const getTypeBadge = (type) => {
-                    if(!type) return '';
-                    let cls = type === 'Opt' ? 'type-opt' : (type === 'Nom' ? 'type-nom' : 'type-ulib');
-                    return `<span class="const-type-badge ${cls}">${type}</span>`;
-                };
+                if (idsSeleccionados.length < 2) {
+                    alert("Por favor, selecciona al menos 2 lentes para comparar.");
+                    btn.innerHTML = originalText; // Restaurar texto
+                    return;
+                }
 
-                html += `
-                <div class="lente-card">
-                    <h4>${l.fabricante} <br><small>${l.modelo}</small></h4>
-                    
-                    <div class="card-section">
-                        <div class="card-title">Especificaciones</div>
-                        <div class="detail-item"><span class="detail-label">ID:</span> <span class="detail-value">${l.id}</span></div>
-                        <div class="detail-item"><span class="detail-label">Material:</span> <span class="detail-value">${d.material}</span></div>
-                        <div class="detail-item"><span class="detail-label">Concepto:</span> <span class="detail-value">${d.concepto}</span></div>
-                        <div class="detail-item"><span class="detail-label">Tórico:</span> <span class="detail-value">${d.torico === 'yes' ? 'Sí' : 'No'}</span></div>
-                        <div class="detail-item"><span class="detail-label">Plegable:</span> <span class="detail-value">${d.plegable}</span></div>
-                        <div class="detail-item"><span class="detail-label">Incisión:</span> <span class="detail-value">${d.incision} mm</span></div>
-                        <div class="detail-item"><span class="detail-label">Índice Refr.:</span> <span class="detail-value">${d.indiceRefraccion}</span></div>
-                        <div class="detail-item"><span class="detail-label">Nº Abbe:</span> <span class="detail-value">${d.numeroAbbe}</span></div>
-                    </div>
+                const lentesComparar = datosLentes.filter(l => idsSeleccionados.includes(l.id));
+                
+                if (lentesComparar.length === 0) {
+                    alert("Error crítico: Los lentes seleccionados no existen en la base de datos actual. Intenta recargar la página.");
+                    btn.innerHTML = originalText;
+                    return;
+                }
 
-                    <div class="card-section">
-                        <div class="card-title">Dimensiones</div>
-                        <div class="detail-item"><span class="detail-label">Dia. Óptico:</span> <span class="detail-value">${d.diametroOptico} mm</span></div>
-                        <div class="detail-item"><span class="detail-label">Dia. Total:</span> <span class="detail-value">${d.diametroTotal} mm</span></div>
-                        <div class="detail-item"><span class="detail-label">Háptico:</span> <span class="detail-value">${d.disenoHaptico}</span></div>
-                        <div class="detail-item"><span class="detail-label">Ubicación:</span> <span class="detail-value">${d.ubicacion}</span></div>
-                    </div>
+                const modalBody = document.getElementById('modal-body');
+                const modalTitle = document.getElementById('modal-title');
+                const modalPopup = document.getElementById('detalle-popup');
 
-                    <div class="card-section">
-                        <div class="card-title">Constantes</div>
-                        <div class="detail-item" style="font-size:1.1em;">
-                            <span class="detail-label">A-Const:</span> 
-                            <span class="detail-value highlight-val">${aConst.value} ${getTypeBadge(aConst.type)}</span>
+                modalTitle.textContent = "Comparación de Lentes";
+                modalBody.innerHTML = ""; 
+                
+                let html = '<div class="comparison-grid">';
+                
+                lentesComparar.forEach(l => {
+                    const d = l.detalles.specs;
+                    const aConst = getBestConstant(l, 'ultrasound');
+                    const srkt = getBestConstant(l, 'srkt');
+                    const hofferQ = getBestConstant(l, 'hofferQ');
+                    const holladay1 = getBestConstant(l, 'holladay1');
+                    const haigis = getBestHaigis(l);
+                    const barrett = getBestConstant(l, 'barrett'); 
+
+                    const getTypeBadge = (type) => {
+                        if(!type) return '';
+                        let cls = type === 'Opt' ? 'type-opt' : (type === 'Nom' ? 'type-nom' : 'type-ulib');
+                        return `<span class="const-type-badge ${cls}">${type}</span>`;
+                    };
+
+                    html += `
+                    <div class="lente-card">
+                        <h4>${l.fabricante} <br><small>${l.modelo}</small></h4>
+                        <div class="card-section">
+                            <div class="card-title">Especificaciones</div>
+                            <div class="detail-item"><span class="detail-label">ID:</span> <span class="detail-value">${l.id}</span></div>
+                            <div class="detail-item"><span class="detail-label">Material:</span> <span class="detail-value">${d.material}</span></div>
+                            <div class="detail-item"><span class="detail-label">Concepto:</span> <span class="detail-value">${d.concepto}</span></div>
+                            <div class="detail-item"><span class="detail-label">Tórico:</span> <span class="detail-value">${d.torico === 'yes' ? 'Sí' : 'No'}</span></div>
+                            <div class="detail-item"><span class="detail-label">Plegable:</span> <span class="detail-value">${d.plegable}</span></div>
+                            <div class="detail-item"><span class="detail-label">Incisión:</span> <span class="detail-value">${d.incision} mm</span></div>
+                            <div class="detail-item"><span class="detail-label">Índice Refr.:</span> <span class="detail-value">${d.indiceRefraccion}</span></div>
+                            <div class="detail-item"><span class="detail-label">Nº Abbe:</span> <span class="detail-value">${d.numeroAbbe}</span></div>
                         </div>
-                        <div class="detail-item"><span class="detail-label">SRK/T:</span> <span class="detail-value">${srkt.value} ${getTypeBadge(srkt.type)}</span></div>
-                        <div class="detail-item"><span class="detail-label">Hoffer Q:</span> <span class="detail-value">${hofferQ.value} ${getTypeBadge(hofferQ.type)}</span></div>
-                        <div class="detail-item"><span class="detail-label">Holladay 1:</span> <span class="detail-value">${holladay1.value} ${getTypeBadge(holladay1.type)}</span></div>
-                        
-                        ${haigis.type ? `
-                        <div style="background:#f8f9fa; padding:8px; border-radius:4px; margin-top:5px;">
-                            <div style="font-size:0.8em; color:#666; margin-bottom:4px;">Haigis ${getTypeBadge(haigis.type)}</div>
-                            <div class="detail-item"><span class="detail-label">a0:</span> <span class="detail-value">${haigis.data.a0}</span></div>
-                            <div class="detail-item"><span class="detail-label">a1:</span> <span class="detail-value">${haigis.data.a1}</span></div>
-                            <div class="detail-item"><span class="detail-label">a2:</span> <span class="detail-value">${haigis.data.a2}</span></div>
-                        </div>` : ''}
-
-                        <div class="detail-item" style="margin-top:5px;"><span class="detail-label">Barrett LF:</span> <span class="detail-value">${barrett.value.LF || 'N/A'}</span></div>
-                    </div>
-                    
-                    <div class="card-section">
-                        <div class="card-title">Disponibilidad</div>
-                        <div style="font-size:0.85em; color:#555;">
-                            <strong>Esfera:</strong> ${l.detalles.availability.sphere.join(' | ')}<br>
-                            ${l.detalles.availability.cylinder.length > 0 ? `<strong>Cilindro:</strong> ${l.detalles.availability.cylinder.join(' | ')}` : ''}
+                        <div class="card-section">
+                            <div class="card-title">Dimensiones</div>
+                            <div class="detail-item"><span class="detail-label">Dia. Óptico:</span> <span class="detail-value">${d.diametroOptico} mm</span></div>
+                            <div class="detail-item"><span class="detail-label">Dia. Total:</span> <span class="detail-value">${d.diametroTotal} mm</span></div>
+                            <div class="detail-item"><span class="detail-label">Háptico:</span> <span class="detail-value">${d.disenoHaptico}</span></div>
+                            <div class="detail-item"><span class="detail-label">Ubicación:</span> <span class="detail-value">${d.ubicacion}</span></div>
+                        </div>
+                        <div class="card-section">
+                            <div class="card-title">Constantes</div>
+                            <div class="detail-item" style="font-size:1.1em;">
+                                <span class="detail-label">A-Const:</span> 
+                                <span class="detail-value highlight-val">${aConst.value} ${getTypeBadge(aConst.type)}</span>
+                            </div>
+                            <div class="detail-item"><span class="detail-label">SRK/T:</span> <span class="detail-value">${srkt.value} ${getTypeBadge(srkt.type)}</span></div>
+                            <div class="detail-item"><span class="detail-label">Hoffer Q:</span> <span class="detail-value">${hofferQ.value} ${getTypeBadge(hofferQ.type)}</span></div>
+                            <div class="detail-item"><span class="detail-label">Holladay 1:</span> <span class="detail-value">${holladay1.value} ${getTypeBadge(holladay1.type)}</span></div>
+                            ${haigis.type ? `
+                            <div style="background:#f8f9fa; padding:8px; border-radius:4px; margin-top:5px;">
+                                <div style="font-size:0.8em; color:#666; margin-bottom:4px;">Haigis ${getTypeBadge(haigis.type)}</div>
+                                <div class="detail-item"><span class="detail-label">a0:</span> <span class="detail-value">${haigis.data.a0}</span></div>
+                                <div class="detail-item"><span class="detail-label">a1:</span> <span class="detail-value">${haigis.data.a1}</span></div>
+                                <div class="detail-item"><span class="detail-label">a2:</span> <span class="detail-value">${haigis.data.a2}</span></div>
+                            </div>` : ''}
+                            <div class="detail-item" style="margin-top:5px;"><span class="detail-label">Barrett LF:</span> <span class="detail-value">${barrett.value.LF || 'N/A'}</span></div>
+                        </div>
+                        <div class="card-section">
+                            <div class="card-title">Disponibilidad</div>
+                            <div style="font-size:0.85em; color:#555;">
+                                <strong>Esfera:</strong> ${l.detalles.availability.sphere.join(' | ')}<br>
+                                ${l.detalles.availability.cylinder.length > 0 ? `<strong>Cilindro:</strong> ${l.detalles.availability.cylinder.join(' | ')}` : ''}
+                            </div>
                         </div>
                     </div>
-                </div>
-                `;
-            });
-            
-            html += '</div>';
-            modalBody.innerHTML = html;
-            
-            // Forzar apertura del modal
-            if(modalPopup) {
-                modalPopup.classList.add('active');
-            } else {
-                alert("Error crítico: No se encontró el elemento modal en la página.");
+                    `;
+                });
+                
+                html += '</div>';
+                modalBody.innerHTML = html;
+                
+                if(modalPopup) {
+                    modalPopup.classList.add('active');
+                    console.log("Modal activado");
+                } else {
+                    alert("Error: No se encontró el contenedor del popup.");
+                }
+            } catch (e) {
+                alert("Ha ocurrido un error inesperado al comparar:\n" + e.message);
+                console.error(e);
+            } finally {
+                // Restaurar texto del botón siempre
+                if(btn) btn.innerHTML = originalText;
             }
         }
 
@@ -649,7 +656,6 @@
                 const textoTorico = l.torico === 'yes' ? 'Sí' : 'No';
                 const badgeConcepto = l.concepto.includes('multi') ? 'badge-multi' : 'badge-mono';
                 const rowId = `row-${l.id}`;
-
                 const isSelected = idsSeleccionados.includes(l.id);
                 const selectedClass = isSelected ? 'selected-row' : '';
 
@@ -701,7 +707,6 @@
                         <div class="detail-item"><span class="detail-label">Índice Refracción:</span> <span class="detail-value">${d.indiceRefraccion}</span></div>
                     </div>
                 </div>
-
                 <div class="detail-section">
                     <h3>Diseño y Dimensiones</h3>
                     <div class="detail-grid">
@@ -713,7 +718,6 @@
                         <div class="detail-item"><span class="detail-label">Ubicación:</span> <span class="detail-value">${d.ubicacion}</span></div>
                     </div>
                 </div>
-
                 <div class="detail-section">
                     <h3>Constantes (Mejor Disponible)</h3>
                     <div class="detail-grid">
@@ -733,7 +737,6 @@
                          <div class="detail-item"><span class="detail-label">Haigis a2:</span> <span class="detail-value">${haigis.data.a2}</span></div>
                     </div>` : ''}
                 </div>
-
                 <div class="detail-section">
                     <h3>Disponibilidad</h3>
                     <p><strong>Esfera:</strong> ${lente.detalles.availability.sphere.length > 0 ? lente.detalles.availability.sphere.join(' | ') : 'N/A'}</p>
@@ -755,8 +758,21 @@
                 cerrarPopup();
             }
         }
+
+        // --- 3. CONEXIÓN DEL EVENTO AL FINAL ---
+        // Esto asegura que la función existe antes de conectarla
+        document.addEventListener("DOMContentLoaded", function() {
+            const btn = document.getElementById('btn-ver-comparacion');
+            if (btn) {
+                btn.addEventListener('click', abrirComparacion);
+                console.log("Evento del botón comparar conectado correctamente.");
+            } else {
+                console.error("No se encontró el botón btn-ver-comparacion");
+            }
+        });
     </script>
 </body>
 </html>
+
 
 
