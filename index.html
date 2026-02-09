@@ -139,6 +139,30 @@
         
         .highlight-val { color: #d63384; font-weight: bold; } 
 
+        /* --- PANTALLA DE CARGA (SPINNER) --- */
+        #loading-screen {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(255, 255, 255, 0.95); z-index: 3000;
+            display: none; /* Oculto por defecto */
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .spinner {
+            border: 8px solid #f3f3f3; /* Gris claro */
+            border-top: 8px solid #007bff; /* Azul */
+            border-radius: 50%;
+            width: 60px;
+            height: 60px;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
         /* Login */
         #login-screen { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: white; z-index: 1000; display: flex; flex-direction: column; justify-content: center; align-items: center; }
         .hidden { display: none !important; }
@@ -159,12 +183,20 @@
         </div>
     </div>
 
+    <!-- PANTALLA DE CARGA -->
+    <div id="loading-screen">
+        <div class="spinner"></div>
+        <h3 style="margin-top: 20px; color: #007bff;">Cargando lentes...</h3>
+        <p style="color: #666;">Descargando datos de GitHub</p>
+    </div>
+
     <!-- BOTÓN FLOTANTE PARA COMPARAR -->
     <button id="btn-ver-comparacion" type="button">
         Ver Comparación (<span id="num-seleccionados">0</span>)
     </button>
 
     <!-- APLICACIÓN PRINCIPAL -->
+    <!-- Inicialmente oculto para que no se vea vacío mientras carga -->
     <div id="app" class="container hidden">
         
         <!-- HEADER CON LOGO Y SWITCH -->
@@ -280,7 +312,7 @@
             const input = document.getElementById('password-input').value;
             if (input === CLAVE_ACCESO) {
                 document.getElementById('login-screen').classList.add('hidden');
-                document.getElementById('app').classList.remove('hidden');
+                document.getElementById('loading-screen').style.display = 'flex'; // MOSTRAR LOADING
                 cargarDatos();
             } else {
                 document.getElementById('error-msg').style.display = 'block';
@@ -414,21 +446,26 @@
                         };
                     });
 
+                    // ÉXITO: Ocultar loading, mostrar app
+                    document.getElementById('loading-screen').style.display = 'none';
+                    document.getElementById('app').classList.remove('hidden');
+                    
                     poblarFiltrosDinamicos();
                     filtrarLentes();
                 })
                 .catch(error => {
+                    // ERROR: Ocultar loading, mostrar app con mensaje de error
+                    document.getElementById('loading-screen').style.display = 'none';
+                    document.getElementById('app').classList.remove('hidden');
                     console.error(error);
-                    document.getElementById('tabla-body').innerHTML = `<tr><td colspan='8' style='text-align:center; color:red;'>${error.message}</td></tr>`;
+                    document.getElementById('tabla-body').innerHTML = `<tr><td colspan='8' style='text-align:center; color:red; padding: 20px;'>${error.message}</td></tr>`;
                 });
         }
 
-        // --- FUNCIÓN CORREGIDA Y ROBUSTA ---
         function getBestConstant(lente, key) {
             const c = lente.detalles.constants;
             if(!c) return { value: "N/A", type: "" };
 
-            // Helper seguro para obtener valor y hacer trim
             const getSafeVal = (source, k) => {
                 const val = source ? source[k] : null;
                 return (typeof val === 'string') ? val.trim() : "";
@@ -437,7 +474,6 @@
             let val = "";
             let type = "";
 
-            // 1. CORRECCIÓN: Usamos 'optimized' (con D), no 'optimize'
             if (c.optimized && getSafeVal(c.optimized, key) !== "") {
                 val = getSafeVal(c.optimized, key);
                 type = "Opt";
@@ -779,6 +815,7 @@
     </script>
 </body>
 </html>
+
 
 
 
