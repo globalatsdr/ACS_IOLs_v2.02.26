@@ -88,6 +88,17 @@
             font-size: 28px; cursor: pointer; color: #999; font-weight: bold; z-index: 10;
         }
         .close-btn:hover { color: #333; }
+
+        /* --- ESTILOS BOTÓN BUSCAR WEB --- */
+        .btn-buscador {
+            display: inline-flex; align-items: center; gap: 8px;
+            background-color: #eef2f7; color: #007bff;
+            padding: 10px 20px; border-radius: 25px;
+            text-decoration: none; font-weight: 600; font-size: 0.9em;
+            transition: all 0.2s; float: right; margin-bottom: 15px;
+            border: 1px solid #d0e7ff;
+        }
+        .btn-buscador:hover { background-color: #007bff; color: white; transform: translateY(-2px); box-shadow: 0 4px 8px rgba(0,123,255,0.3); }
         
         /* GRID COMPARACIÓN AMPLIO */
         .comparison-grid {
@@ -143,15 +154,15 @@
         #loading-screen {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             background: rgba(255, 255, 255, 0.95); z-index: 3000;
-            display: none; /* Oculto por defecto */
+            display: none;
             flex-direction: column;
             justify-content: center;
             align-items: center;
         }
 
         .spinner {
-            border: 8px solid #f3f3f3; /* Gris claro */
-            border-top: 8px solid #007bff; /* Azul */
+            border: 8px solid #f3f3f3;
+            border-top: 8px solid #007bff;
             border-radius: 50%;
             width: 60px;
             height: 60px;
@@ -196,7 +207,6 @@
     </button>
 
     <!-- APLICACIÓN PRINCIPAL -->
-    <!-- Inicialmente oculto para que no se vea vacío mientras carga -->
     <div id="app" class="container hidden">
         
         <!-- HEADER CON LOGO Y SWITCH -->
@@ -446,7 +456,7 @@
                         };
                     });
 
-                    // ÉXITO: Ocultar loading, mostrar app
+                    // ÉXITO
                     document.getElementById('loading-screen').style.display = 'none';
                     document.getElementById('app').classList.remove('hidden');
                     
@@ -454,7 +464,7 @@
                     filtrarLentes();
                 })
                 .catch(error => {
-                    // ERROR: Ocultar loading, mostrar app con mensaje de error
+                    // ERROR
                     document.getElementById('loading-screen').style.display = 'none';
                     document.getElementById('app').classList.remove('hidden');
                     console.error(error);
@@ -730,6 +740,10 @@
 
             modalTitle.textContent = `${lente.fabricante} - ${lente.modelo}`;
 
+            // --- GENERAR URL DE BÚSQUEDA ---
+            const searchQuery = encodeURIComponent(`${lente.fabricante} ${lente.modelo} IOL`);
+            const searchUrl = `https://www.google.com/search?q=${searchQuery}`;
+
             const aConst = getBestConstant(lente, 'ultrasound');
             const srkt = getBestConstant(lente, 'srkt');
             const hofferQ = getBestConstant(lente, 'hofferQ');
@@ -742,7 +756,18 @@
                 return `<span class="const-type-badge ${cls}">${type}</span>`;
             };
 
+            // --- BOTÓN BUSCAR WEB ---
+            const searchButtonHTML = `
+                <div style="overflow: hidden; margin-bottom: 20px;">
+                    <a href="${searchUrl}" target="_blank" class="btn-buscador">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+                        Buscar más información en Google
+                    </a>
+                </div>
+            `;
+
             let html = `
+                ${searchButtonHTML}
                 <div class="detail-section">
                     <h3>Información General</h3>
                     <div class="detail-grid">
